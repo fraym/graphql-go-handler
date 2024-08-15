@@ -13,7 +13,7 @@ type playgroundData struct {
 }
 
 // renderPlayground renders the Playground GUI
-func renderPlayground(w http.ResponseWriter, r *http.Request, endpoint string, subscriptionEndpoint string) {
+func renderPlayground(w http.ResponseWriter, endpoint string, subscriptionEndpoint string) {
 	t := template.New("Playground")
 	t, err := t.Parse(graphcoolPlaygroundTemplate)
 	if err != nil {

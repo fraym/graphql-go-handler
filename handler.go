@@ -1,18 +1,16 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/graphql-go/graphql"
-
-	"context"
-
-	"github.com/graphql-go/graphql/gqlerrors"
+	graphql "github.com/fraym/graphql-go"
+	"github.com/fraym/graphql-go/gqlerrors"
 )
 
 const (
@@ -53,7 +51,7 @@ func getFromForm(values url.Values) *RequestOptions {
 		// get variables map
 		variables := make(map[string]interface{}, len(values))
 		variablesStr := values.Get("variables")
-		json.Unmarshal([]byte(variablesStr), &variables)
+		_ = json.Unmarshal([]byte(variablesStr), &variables)
 
 		return &RequestOptions{
 			Query:         query,
@@ -86,7 +84,7 @@ func NewRequestOptions(r *http.Request) *RequestOptions {
 
 	switch contentType {
 	case ContentTypeGraphQL:
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			return &RequestOptions{}
 		}
@@ -108,7 +106,7 @@ func NewRequestOptions(r *http.Request) *RequestOptions {
 		fallthrough
 	default:
 		var opts RequestOptions
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			return &opts
 		}
@@ -117,8 +115,8 @@ func NewRequestOptions(r *http.Request) *RequestOptions {
 			// Probably `variables` was sent as a string instead of an object.
 			// So, we try to be polite and try to parse that as a JSON string
 			var optsCompatible requestOptionsCompatibility
-			json.Unmarshal(body, &optsCompatible)
-			json.Unmarshal([]byte(optsCompatible.Variables), &opts.Variables)
+			_ = json.Unmarshal(body, &optsCompatible)
+			_ = json.Unmarshal([]byte(optsCompatible.Variables), &opts.Variables)
 		}
 		return &opts
 	}
@@ -172,7 +170,7 @@ func (h *Handler) ContextHandler(ctx context.Context, w http.ResponseWriter, r *
 				subscriptionEndpoint = h.playgroundConfig.SubscriptionEndpoint
 			}
 
-			renderPlayground(w, r, endpoint, subscriptionEndpoint)
+			renderPlayground(w, endpoint, subscriptionEndpoint)
 			return
 		}
 	}
@@ -185,12 +183,12 @@ func (h *Handler) ContextHandler(ctx context.Context, w http.ResponseWriter, r *
 		w.WriteHeader(http.StatusOK)
 		buff, _ = json.MarshalIndent(result, "", "\t")
 
-		w.Write(buff)
+		_, _ = w.Write(buff)
 	} else {
 		w.WriteHeader(http.StatusOK)
 		buff, _ = json.Marshal(result)
 
-		w.Write(buff)
+		_, _ = w.Write(buff)
 	}
 
 	if h.resultCallbackFn != nil {

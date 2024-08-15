@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"net/http"
 
-	"github.com/graphql-go/graphql"
+	graphql "github.com/fraym/graphql-go"
 )
 
 // graphiqlData is the page data structure of the rendered GraphiQL page
@@ -61,8 +61,6 @@ func renderGraphiQL(w http.ResponseWriter, params graphql.Params) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-
-	return
 }
 
 // graphiqlVersion is the current version of GraphiQL

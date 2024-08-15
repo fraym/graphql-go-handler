@@ -1,29 +1,29 @@
 package handler_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 
-	"context"
-
-	"github.com/graphql-go/graphql"
-	"github.com/graphql-go/graphql/gqlerrors"
-	"github.com/graphql-go/graphql/language/location"
-	"github.com/graphql-go/graphql/testutil"
-	"github.com/graphql-go/handler"
+	graphql "github.com/fraym/graphql-go"
+	handler "github.com/fraym/graphql-go-handler"
+	"github.com/fraym/graphql-go/gqlerrors"
+	"github.com/fraym/graphql-go/language/location"
+	"github.com/fraym/graphql-go/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func decodeResponse(t *testing.T, recorder *httptest.ResponseRecorder) *graphql.Result {
 	// clone request body reader so that we can have a nicer error message
 	bodyString := ""
 	var target graphql.Result
-	if b, err := ioutil.ReadAll(recorder.Body); err == nil {
+	if b, err := io.ReadAll(recorder.Body); err == nil {
 		bodyString = string(b)
 	}
 	readerClone := strings.NewReader(bodyString)
@@ -35,6 +35,7 @@ func decodeResponse(t *testing.T, recorder *httptest.ResponseRecorder) *graphql.
 	}
 	return &target
 }
+
 func executeTest(t *testing.T, h *handler.Handler, req *http.Request) (*graphql.Result, *httptest.ResponseRecorder) {
 	resp := httptest.NewRecorder()
 	h.ServeHTTP(resp, req)
@@ -43,6 +44,8 @@ func executeTest(t *testing.T, h *handler.Handler, req *http.Request) (*graphql.
 }
 
 func TestContextPropagated(t *testing.T) {
+	type ContextId struct{}
+	contextId := ContextId{}
 	myNameQuery := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Query",
 		Fields: graphql.Fields{
@@ -50,7 +53,7 @@ func TestContextPropagated(t *testing.T) {
 				Name: "name",
 				Type: graphql.String,
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					return p.Context.Value("name"), nil
+					return p.Context.Value(contextId), nil
 				},
 			},
 		},
@@ -75,16 +78,14 @@ func TestContextPropagated(t *testing.T) {
 		Pretty: true,
 	})
 
-	ctx := context.WithValue(context.Background(), "name", "context-data")
+	ctx := context.WithValue(context.Background(), contextId, "context-data")
 	resp := httptest.NewRecorder()
 	h.ContextHandler(ctx, resp, req)
 	result := decodeResponse(t, resp)
 	if resp.Code != http.StatusOK {
 		t.Fatalf("unexpected server response %v", resp.Code)
 	}
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("wrong result, graphql result diff: %v", testutil.Diff(expected, result))
-	}
+	assert.Equal(t, result, expected)
 }
 
 func TestHandler_BasicQuery_Pretty(t *testing.T) {
@@ -117,9 +118,7 @@ func TestHandler_BasicQuery_Pretty(t *testing.T) {
 	if resp.Code != http.StatusOK {
 		t.Fatalf("unexpected server response %v", resp.Code)
 	}
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("wrong result, graphql result diff: %v", testutil.Diff(expected, result))
-	}
+	assert.Equal(t, result, expected)
 	if !callbackCalled {
 		t.Fatalf("ResultCallbackFn was not called when it should have been")
 	}
@@ -144,9 +143,7 @@ func TestHandler_BasicQuery_Ugly(t *testing.T) {
 	if resp.Code != http.StatusOK {
 		t.Fatalf("unexpected server response %v", resp.Code)
 	}
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("wrong result, graphql result diff: %v", testutil.Diff(expected, result))
-	}
+	assert.Equal(t, result, expected)
 }
 
 func TestHandler_Params_NilParams(t *testing.T) {
@@ -165,7 +162,6 @@ func TestHandler_Params_NilParams(t *testing.T) {
 		t.Fatalf("expected to panic, did not panic")
 	}()
 	_ = handler.New(nil)
-
 }
 
 func TestHandler_BasicQuery_WithRootObjFn(t *testing.T) {
@@ -208,9 +204,7 @@ func TestHandler_BasicQuery_WithRootObjFn(t *testing.T) {
 	if resp.Code != http.StatusOK {
 		t.Fatalf("unexpected server response %v", resp.Code)
 	}
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("wrong result, graphql result diff: %v", testutil.Diff(expected, result))
-	}
+	assert.Equal(t, result, expected)
 }
 
 type customError struct {
@@ -218,7 +212,7 @@ type customError struct {
 }
 
 func (e customError) Error() string {
-	return fmt.Sprintf("%s", e.message)
+	return e.message
 }
 
 func TestHandler_BasicQuery_WithFormatErrorFn(t *testing.T) {
@@ -245,7 +239,7 @@ func TestHandler_BasicQuery_WithFormatErrorFn(t *testing.T) {
 	customFormattedError := gqlerrors.FormattedError{
 		Message: resolverError.Error(),
 		Locations: []location.SourceLocation{
-			location.SourceLocation{
+			{
 				Line:   1,
 				Column: 2,
 			},
@@ -286,9 +280,7 @@ func TestHandler_BasicQuery_WithFormatErrorFn(t *testing.T) {
 	if !formatErrorFnCalled {
 		t.Fatalf("FormatErrorFn was not called when it should have been")
 	}
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("wrong result, graphql result diff: %v", testutil.Diff(expected, result))
-	}
+	assert.Equal(t, result, expected)
 }
 
 func TestPlaygroundWithDefaultConfig(t *testing.T) {

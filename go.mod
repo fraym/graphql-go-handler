@@ -1,5 +1,14 @@
-module github.com/graphql-go/handler
+module github.com/fraym/graphql-go-handler
 
-go 1.14
+go 1.22
 
-require github.com/graphql-go/graphql v0.8.1 // indirect
+require (
+	github.com/fraym/graphql-go v0.1.0
+	github.com/stretchr/testify v1.9.0
+)
+
+require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
